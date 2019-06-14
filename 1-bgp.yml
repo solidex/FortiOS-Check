@@ -6,8 +6,6 @@
     bgp_inconsistency: []
   tasks:
 
-  -
-
   - name: Get BGP facts
     delegate_to: localhost
     napalm_get_facts:
