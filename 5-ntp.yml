@@ -1,0 +1,50 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  vars:
+    ntp_inconsistency: []
+  tasks:
+
+  - name: "NTP"
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{  host }}"
+     username: "{{  username }}"
+     password: "{{ password }}"
+     https: True
+     commands: |
+               diag sys ntp status
+
+    register: ntp_status
+
+  - name: "Check if ntp sync enabled"
+    set_fact:
+      ntp_inconsistency: "{{ ntp_inconsistency + [ inventory_hostname + ': ntp sync not enabled' ]}}"
+    when: '"ntpsync: enabled" not in ntp_status.meta.out'
+
+  - name: "Check if ntp syncronized"
+    set_fact:
+      ntp_inconsistency: "{{ ntp_inconsistency + [ inventory_hostname + ': ntp not syncronized' ]}}"
+    when: '"synchronized: yes" not in ntp_status.meta.out'
+
+  - name: "Get timezone"
+    delegate_to: localhost
+    fortiosconfig:
+     config: "system global"
+     action: "get"
+     host:  "{{  host }}"
+     username: "{{  username }}"
+     password: "{{ password }}"
+     https: True
+    register: tz_info
+
+  - name: "Check TZ"
+    set_fact:
+      ntp_inconsistency: "{{ ntp_inconsistency + [ inventory_hostname + ': TZ is not configured properly' ]}}"
+    when: 'tz_info.meta.results.timezone | int != 84'
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'NTP: ok' if (ntp_inconsistency | length) == 0 else ntp_inconsistency }}"

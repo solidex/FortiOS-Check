@@ -1,0 +1,71 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  vars:
+    ping_inconsistency: []
+  tasks:
+
+  - name: "Ping - BGP neighbors"
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{  host }}"
+     username: "{{  username }}"
+     password: "{{ password }}"
+     https: True
+     commands: |
+               execute ping {{ item.ip }}
+
+    register: ping_result_bgp
+    loop: "{{ bgp.neighbor }}"
+
+  - name: "Check if pings where ok - BGP neigh"
+    set_fact:
+      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': packet loss pinging ' + item.item.ip ]}}"
+    when: '" 0% packet loss" not in item.meta.out'
+    loop: "{{ ping_result_bgp.results }}"
+
+  - name: "Ping - Internet"
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{  host }}"
+     username: "{{  username }}"
+     password: "{{ password }}"
+     https: True
+     commands: |
+               execute ping {{ item }}
+
+    register: ping_result_right
+    loop: "{{ ping_right }}"
+
+  - name: "Ping - Subscribers"
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{  host }}"
+     username: "{{  username }}"
+     password: "{{ password }}"
+     https: True
+     commands: |
+               execute ping {{ item }}
+
+    register: ping_result_left
+    loop: "{{ ping_left[inventory_hostname] }}"
+
+  - name: "Check if pings where ok 1"
+    set_fact:
+      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': packet loss pinging ' + item.item ]}}"
+    when: '" 0% packet loss" not in item.meta.out'
+    loop: "{{ ping_result_left.results }}"
+
+  - name: "Check if pings where ok 2"
+    set_fact:
+      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': packet loss pinging ' + item.item ]}}"
+    when: '" 0% packet loss" not in item.meta.out'
+    loop: "{{ ping_result_right.results }}"
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Connectivity ok' if (ping_inconsistency | length) == 0 else ping_inconsistency}}"

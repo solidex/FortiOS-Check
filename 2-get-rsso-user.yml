@@ -1,0 +1,32 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  tasks:
+
+  - name: Get user firewall auth information
+    delegate_to: localhost
+    fortiosconfig:
+      config: "user firewall"
+      action: "monitor"
+      host:  "{{ host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      https: "{{ https }}"
+    register: user_fw_auth_info
+
+
+  - set_fact:
+      qry: "[?username=='{{ user|upper }}']"
+
+
+  - set_fact:
+      userinfo: "{{ user_fw_auth_info.meta.results | json_query(qry) }}"
+
+  - debug:
+      msg: "User {{ user }} auth from {{ userinfo[0].ipaddr }}, usergroup {{ userinfo[0].usergroup }}"
+    when: userinfo | length != 0
+
+  - debug:
+      msg: "No auth session found for user {{ user }}"
+    when: userinfo | length == 0

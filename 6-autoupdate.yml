@@ -1,0 +1,75 @@
+
+- hosts: ha_master
+  vars:
+    autoupd_inconsistency: []
+  gather_facts: no
+  tasks:
+
+  - name: Get fdn availablity info
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{ host }}"
+     username: "{{ username }}"
+     password: "{{ password }}"
+     commands: |
+               diagnose autoupdate status
+    register: fdn_avail_status
+
+  - debug: var=fdn_avail_status
+
+  - name: "Check fdn is available"
+    set_fact:
+      autoupd_inconsistency: "{{ autoupd_inconsistency + [ inventory_hostname + ': FDN is not available' ] }}"
+    when: "'FDN availability:  available' not in fdn_avail_status.meta.out"
+
+  - name: "Check AV autoupdates"
+    set_fact:
+      autoupd_inconsistency: "{{ autoupd_inconsistency + [ inventory_hostname + ': AV update not scheduled' ] }}"
+    when: "'Virus definitions update: enable' not in fdn_avail_status.meta.out"
+
+  - name: "Check IPS autoupdates"
+    set_fact:
+      autoupd_inconsistency: "{{ autoupd_inconsistency + [ inventory_hostname + ': IPS update not scheduled' ] }}"
+    when: "'IPS definitions update: enable' not in fdn_avail_status.meta.out"
+
+
+  - name: Get fortiguard-service status
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{ host }}"
+     username: "{{ username }}"
+     password: "{{ password }}"
+     commands: |
+               get system fortiguard-service status
+    register: fgd_service_status
+
+  - set_fact:
+      vir_def1: "{{ fgd_service_status.meta.out | regex_findall ('\\nVirus Definitions.+(\\d{4}-\\d{1,2}-\\d{1,2}).+(\\d{4}-\\d{1,2}-\\d{1,2}|n/a).+\\n') }}"
+      vir_def2: "{{ fgd_service_status.meta.out | regex_findall ('\\nFlow-based Virus Definitions.+(\\d{4}-\\d{1,2}-\\d{1,2}).+(\\d{4}-\\d{1,2}-\\d{1,2}|n/a).+\\n') }}"
+      ips_def: "{{ fgd_service_status.meta.out | regex_findall ('\\nAttack Definitions.+(\\d{4}-\\d{1,2}-\\d{1,2}).+(\\d{4}-\\d{1,2}-\\d{1,2}|n/a).+\\n') }}"
+
+
+  - name: "Get local time"
+    local_action: shell date +"%Y-%m-%d"
+    register: local_date
+
+  # - name: "Check if AV was updated 1"
+  #   set_fact:
+  #     autoupd_inconsistency: "{{ autoupd_inconsistency + [ inventory_hostname + ': AV updated more than 24h ago. Lic: ' + vir_def1.0.1 | string ] }}"
+  #   when: "(( local_date.stdout  | to_datetime('%Y-%m-%d') ) - ( vir_def1.0.0 | to_datetime('%Y-%m-%d') )).total_seconds() > 3600 * 24"
+
+  - name: "Check if AV was updated 2"
+    set_fact:
+      autoupd_inconsistency: "{{ autoupd_inconsistency + [ inventory_hostname + ': AV Flow updated more than 24h ago. Lic: ' + vir_def2.0.1 | string ] }}"
+    when: "(( local_date.stdout  | to_datetime('%Y-%m-%d') ) - ( vir_def2.0.0 | to_datetime('%Y-%m-%d') )).total_seconds() > 3600 * 24"
+
+  - name: "Check if IPS was updated"
+    set_fact:
+      autoupd_inconsistency: "{{ autoupd_inconsistency + [ inventory_hostname + ': IPS updated more than 24h ago. Lic: ' + ips_def.0.1 | string ] }}"
+    when: "(( local_date.stdout  | to_datetime('%Y-%m-%d') ) - ( ips_def.0.0 | to_datetime('%Y-%m-%d') )).total_seconds() > 3600 * 24"
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Updates configuration and state are ok' if (autoupd_inconsistency | length) == 0 else autoupd_inconsistency}}"

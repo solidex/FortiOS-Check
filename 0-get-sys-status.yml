@@ -1,0 +1,33 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  tasks:
+
+  - name: Get SN
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{ host }}"
+     username: "{{ username }}"
+     password: "{{ password }}"
+     commands: |
+               get system status
+    register: system_status_info
+
+  - set_fact:
+      sn: "{{ system_status_info.meta.out | regex_findall ('Serial-Number: (FGVM\\w+)') }}"
+
+  - name: Get firmware and serial number
+    delegate_to: localhost
+    fortiosconfig:
+      config: "system firmware"
+      action: "monitor"
+      host:  "{{ host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      https: "{{ https }}"
+    register: fw_info
+
+  - debug:
+      msg: "SN: {{ sn[0] }}, FortiOS: {{ fw_info.meta.version }}"

@@ -1,0 +1,3 @@
+vars/
+ansible278/
+*.retry
