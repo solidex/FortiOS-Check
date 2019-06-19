@@ -1,0 +1,63 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  vars:
+    https: True
+    intf_inconsistency: []
+  tasks:
+
+  - name: Get Interface information
+    delegate_to: localhost
+    fortiosconfig:
+      config: "system interface"
+      action: "get"
+      host:  "{{ host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      https: "{{ https }}"
+    register: interface_info
+
+  - name: "Check if admin access is configured"
+    set_fact:
+      intf_inconsistency: "{{ intf_inconsistency + [ inventory_hostname + ': ' + item[0].name + ' has no ' + item[1] + ' access allowed' ] }}"
+    when:
+      - "item[0].name in management.port"
+      - "(item[1] not in item[0].allowaccess)"
+    with_nested:
+      - "{{ interface_info.meta.results }}"
+      - "{{ management.proto }}"
+
+  - name: "Check if RADIUS-Acct access is configured"
+    set_fact:
+      intf_inconsistency: "{{ intf_inconsistency + [ inventory_hostname + ': ' + item[0].name + ' has no ' + item[1] + ' access allowed' ] }}"
+    when:
+      - "item[0].name in radius.port"
+      - "(item[1] not in item[0].allowaccess)"
+    with_nested:
+      - "{{ interface_info.meta.results }}"
+      - "{{ radius.proto }}"
+
+  - name: "Check if excessive admin access is configured"
+    set_fact:
+      intf_inconsistency: "{{ intf_inconsistency + [ inventory_hostname + ': ' + item[0].name + ' has ' + item[1] + ' access allowed' ] }}"
+    when:
+      - "item[0].name not in management.port"
+      - "(item[1] in item[0].allowaccess)"
+    with_nested:
+      - "{{ interface_info.meta.results }}"
+      - ['http', 'telnet', 'ssh', 'fgfm', 'capwap', 'snmp']
+
+  - name: "Check if excessive RADIUS-Acct access configured"
+    set_fact:
+      intf_inconsistency: "{{ intf_inconsistency + [ inventory_hostname + ': ' + item[0].name + ' has ' + item[1] + ' access allowed' ] }}"
+    when:
+      - "item[0].name not in radius.port"
+      - "(item[1] in item[0].allowaccess)"
+    with_nested:
+      - "{{ interface_info.meta.results }}"
+      - ['radius-acct']
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Management access ok' if (intf_inconsistency | length) == 0 else intf_inconsistency}}"

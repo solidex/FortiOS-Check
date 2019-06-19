@@ -1,0 +1,46 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  vars:
+    acc_inconsistency: []
+  tasks:
+
+  - name: "Scanning ports from this host"
+    delegate_to: localhost
+    shell: nmap {{ ip[item].address | ipaddr('address') }} -p22,23,80,443,541 --open | grep open
+    register: acc_status
+    with_items: "{{ ip }}"
+    changed_when: no
+    failed_when: no
+
+  - name: "Check if scan found no open ports"
+    set_fact:
+      acc_inconsistency: "{{ acc_inconsistency + [ inventory_hostname + ': ' + item.item + ' from LOCALHOST check failed: ' + item.stdout ]}}"
+    when: 'item.stdout != ""'
+    loop: "{{ acc_status.results }}"
+
+  - name: "Scanning ports from testing client"
+    delegate_to: "{{ hostvars[item[1]].inventory_hostname }}"
+    shell: nmap {{ ip[item[0]].address | ipaddr('address') }} -p22,23,80,443,541 --open | grep open
+    register: acc_status
+    when: "inventory_hostname in item[1]"
+    with_nested:
+      - "{{ ip }}"
+      - "{{ groups['testing_clients'] }}"
+    changed_when: no
+    failed_when: no
+
+  - debug:
+      msg: "{{ acc_status.results }}"
+
+  - name: "Check if scan found no open ports"
+    set_fact:
+      acc_inconsistency: "{{ acc_inconsistency + [ inventory_hostname + ': ' + item.item[0] + ' from ' + item.item[1] + ' check failed: ' + item.stdout ]}}"
+    when: 'item.stdout != ""'
+    loop: "{{ acc_status.results }}"
+
+  # Printing results
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Access restricted ok' if (acc_inconsistency | length) == 0 else acc_inconsistency}}"

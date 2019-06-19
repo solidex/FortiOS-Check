@@ -1,0 +1,34 @@
+
+- hosts: ha_master
+  gather_facts: no
+  tasks:
+
+  - name: Get autoupdate server
+    delegate_to: localhost
+    fortiosconfig:
+      action: "ssh"
+      host:  "{{ host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      commands: |
+        diag autoupdate versions | grep -A3 "FDS Address"
+    register: upd_info
+
+  - name: Get top-3 rating servers
+    delegate_to: localhost
+    fortiosconfig:
+      action: "ssh"
+      host:  "{{ host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      commands: |
+        diag debug rating | grep -A3 "^IP"
+    register: rating_info
+
+  - name: "Update server info"
+    debug:
+      msg: "{{ upd_info.meta.out.split('\n') }}"
+
+  - name: "Rating server info"
+    debug:
+      msg: "{{ rating_info.meta.out.split('\n') }}"

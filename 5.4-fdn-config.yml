@@ -1,0 +1,44 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  vars:
+    https: True
+    cm_inconsistency: []
+  tasks:
+
+  - name: Get fortiguard information
+    delegate_to: localhost
+    fortiosconfig:
+      config: "system central-management"
+      action: "get"
+      host:  "{{ host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      https: "{{ https }}"
+    register: cm_info
+
+  - name: "Check is FortiManager is used as central management server"
+    set_fact:
+      cm_inconsistency: "{{ cm_inconsistency + [ inventory_hostname + ': ' + item.fmg  | regex_replace('\\\"', '') + ' is configured as FMG but ' + fortimanager.ip + ' expected' ] }}"
+    when: "item.fmg | regex_replace('\\\"', '') != fortimanager.ip"
+    vars:
+      item: "{{ cm_info.meta.results }}"
+
+  - name: "Check is FortiManager is configured for updates/rating"
+    set_fact:
+      cm_inconsistency: "{{ cm_inconsistency + [ inventory_hostname + ': wrong FortiManager config for updates/rating' ] }}"
+    when: "item['server-list'][0]['server-address'] != fortimanager.ip or item['server-list'][0]['server-type'] != 'update rating'"
+    vars:
+      item: "{{ cm_info.meta.results }}"
+
+  - name: "Check is public FDN is configured"
+    set_fact:
+      cm_inconsistency: "{{ cm_inconsistency + [ inventory_hostname + ': public FDN not configured as update/rating' ] }}"
+    when: "item['include-default-servers'] != 'enable'"
+    vars:
+      item: "{{ cm_info.meta.results }}"
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'FGD config ok' if (cm_inconsistency | length) == 0 else cm_inconsistency}}"

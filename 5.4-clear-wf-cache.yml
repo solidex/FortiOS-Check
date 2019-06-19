@@ -1,0 +1,16 @@
+
+- hosts: ha_master
+  vars:
+    autoupd_inconsistency: []
+  gather_facts: no
+  tasks:
+
+  - name: Clear WF cache
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{ host }}"
+     username: "{{ username }}"
+     password: "{{ password }}"
+     commands: |
+              diagnose test application urlfilter 2

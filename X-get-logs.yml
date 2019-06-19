@@ -1,0 +1,22 @@
+
+# ansible-playbook X-get-logs.yml -e "window=10 filter='src=172.17.18.80.*dst=195.137.160.142'"
+
+- hosts: ctrl_log
+  gather_facts: no
+  tasks:
+
+  - name: Get logs from remote servers
+    shell: "find /var/log/NETWORK/ -mmin -{{ window }} -type f | xargs grep -E {{ filter }}"
+    register: log_info
+    failed_when: no
+
+  - debug:
+      msg: "Nothing found"
+    when: "log_info.rc==123"
+  # - debug:
+  #     msg: "{{ log_info }}"
+
+  - name: "Show logs"
+    debug:
+      msg: "{{ log_info.stdout_lines }}"
+    when: "log_info.rc==0"

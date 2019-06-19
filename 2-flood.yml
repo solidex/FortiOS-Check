@@ -7,17 +7,17 @@
   tasks:
 
   # Ping test
-  - name: "Pinging"
+  - name: "Check flood target reachability"
     shell: ping -q -c 5 -W 1 {{ item.target }}
     register: ping_status
     loop: "{{ flood.syn }}"
     changed_when: no
     failed_when: no
 
-
-  - name: "Check if pings where ok"
-    set_fact:
-      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': packet loss pinging ' + item.item ]}}"
+  - name: "Flood target is unreachable!"
+    fail:
+      msg:
+        - "Flood target is unreachable!"
     when: '" 0% packet loss" not in item.stdout'
     loop: "{{ ping_status.results }}"
 
@@ -52,4 +52,4 @@
 
   - name: Analyze and print result
     debug:
-       msg: "{{ 'Pings ok. Flood executed!' if (ping_inconsistency | length) == 0 else ping_inconsistency}}"
+       msg: "{{ 'Flood ok' if (ping_inconsistency | length) == 0 else ping_inconsistency}}"

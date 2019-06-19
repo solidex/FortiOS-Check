@@ -16,8 +16,6 @@
                diagnose autoupdate status
     register: fdn_avail_status
 
-  - debug: var=fdn_avail_status
-
   - name: "Check fdn is available"
     set_fact:
       autoupd_inconsistency: "{{ autoupd_inconsistency + [ inventory_hostname + ': FDN is not available' ] }}"
@@ -55,6 +53,8 @@
     local_action: shell date +"%Y-%m-%d"
     register: local_date
 
+  # Enable check is "AV" not "AV flow" needed
+
   # - name: "Check if AV was updated 1"
   #   set_fact:
   #     autoupd_inconsistency: "{{ autoupd_inconsistency + [ inventory_hostname + ': AV updated more than 24h ago. Lic: ' + vir_def1.0.1 | string ] }}"
@@ -72,4 +72,4 @@
 
   - name: Analyze and print result
     debug:
-       msg: "{{ 'Updates configuration and state are ok' if (autoupd_inconsistency | length) == 0 else autoupd_inconsistency}}"
+       msg: "{{ 'Autoupdate ok' if (autoupd_inconsistency | length) == 0 else autoupd_inconsistency}}"

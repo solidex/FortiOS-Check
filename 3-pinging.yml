@@ -1,0 +1,28 @@
+
+- hosts: testing_clients
+
+  gather_facts: no
+  vars:
+    ping_inconsistency: []
+  tasks:
+
+  # Ping test
+  - name: "Running httping"
+    shell: httping -l -c 90 -t1 -g {{ httpping.target }}
+    register: ping_status
+    changed_when: no
+    failed_when: no
+
+  - set_fact:
+      stats: "{{ ping_status.stdout | regex_findall('ping statistics ---\\n(\\d+) connects.*(\\d+) ok')}}"
+
+  - name: "Check if pings where ok"
+    set_fact:
+      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': lost ' + (stats[0][0] | int - stats[0][1] | int) | string + ' http pings' ]}}"
+    when: "((stats[0][0] | int - stats[0][1] | int) > 10)"
+
+  # Printing results
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Pinging ok' if (ping_inconsistency | length) == 0 else ping_inconsistency}}"

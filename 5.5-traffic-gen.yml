@@ -1,0 +1,20 @@
+
+- hosts: testing_clients
+
+  gather_facts: no
+  vars:
+    ping_inconsistency: []
+  tasks:
+
+  # Ping test
+  - name: "Ping"
+    shell: ping -c 4 {{ log_test.ping }}
+    register: ping_status
+
+  - name: "DNS request"
+    shell: dig tut.by @{{ log_test.dns }}
+    register: dns_status
+
+  - name: "HTTP request"
+    shell: httping -c1 -t1 -g {{ log_test.http }}
+    register: http_status

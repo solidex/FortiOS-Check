@@ -1,0 +1,41 @@
+
+- hosts: ctrl_log
+
+  gather_facts: no
+  vars:
+    log_inconsistency: []
+  tasks:
+
+  - name: Get logs from remote servers - PING
+    shell: "find /var/log/NETWORK/ -mmin -10 -type f | xargs grep -E \"src={{ hostvars[testing_client].ansible_host }}.*dst={{ log_test.ping }}.*proto=1\""
+    register: ping_log_info
+    failed_when: no
+
+  - name: "Check if logs found - PING"
+    set_fact:
+      log_inconsistency: "{{ log_inconsistency + [ inventory_hostname + ': no logs found for PING test' ]}}"
+    when: "ping_log_info.rc==123"
+
+  - name: Get logs from remote servers - DNS
+    shell: "find /var/log/NETWORK/ -mmin -10 -type f | xargs grep -E \"src={{ hostvars[testing_client].ansible_host }}.*dst={{ log_test.dns }}.*dpt=53.*proto=17\""
+    register: dns_log_info
+    failed_when: no
+
+  - name: "Check if logs found - DNS"
+    set_fact:
+      log_inconsistency: "{{ log_inconsistency + [ inventory_hostname + ': no logs found for DNS test' ]}}"
+    when: "dns_log_info.rc==123"
+
+  - name: Get logs from remote servers - HTTP
+    shell: "find /var/log/NETWORK/ -mmin -10 -type f | xargs grep -E \"src={{ hostvars[testing_client].ansible_host }}.*dst={{ log_test.http_ip }}.*dpt=(80|443).*proto=6\""
+    register: http_log_info
+    failed_when: no
+
+  - name: "Check if logs found - HTTP"
+    set_fact:
+      log_inconsistency: "{{ log_inconsistency + [ inventory_hostname + ': no logs found for HTTP test' ]}}"
+    when: "http_log_info.rc==123"
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Logs found' if (log_inconsistency | length) == 0 else log_inconsistency}}"

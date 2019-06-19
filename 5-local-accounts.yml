@@ -1,0 +1,86 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  vars:
+    acc_inconsistency: []
+    query1: "[?name=='admin'].name"
+    query2: "[?name=='admin'].password"
+  tasks:
+
+  - name: Test SSH - 1
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{ host }}"
+     username: "{{ admin | json_query(query1) | first  }}"
+     password: "{{ admin | json_query(query2) | first }}"
+     commands: |
+               get system status
+    register: ssh_1
+    ignore_errors: yes
+
+
+  - name: Test HTTPS - 1
+    delegate_to: localhost
+    fortiosconfig:
+      config: "system firmware"
+      action: "monitor"
+      host:  "{{ host }}"
+      username: "{{ admin | json_query(query1) | first  }}"
+      password: "{{ admin | json_query(query2) | first }}"
+      https: "{{ https }}"
+    register: https_1
+    ignore_errors: yes
+
+  - name: Test SSH - 2 (should fail)
+    delegate_to: localhost
+    fortiosconfig:
+      action: "ssh"
+      host:  "{{ host }}"
+      username: "{{ item.login }}"
+      password: "{{ item.password }}"
+      commands: |
+           get system status
+    register: ssh_2
+    ignore_errors: yes
+    loop: "{{ test_accounts }}"
+
+  - name: Test HTTPS - 2 (should fail)
+    delegate_to: localhost
+    fortiosconfig:
+      config: "system firmware"
+      action: "monitor"
+      host:  "{{ host }}"
+      username: "{{ item.login }}"
+      password: "{{ item.password }}"
+      https: "{{ https }}"
+    register: https_2
+    ignore_errors: yes
+    loop: "{{ test_accounts }}"
+
+  - name: "Check admin access was ok - 1.1"
+    set_fact:
+      acc_inconsistency: "{{ acc_inconsistency + [ inventory_hostname + ': admin access via SSH NOT ok!' ] }}"
+    when: "ssh_1.failed"
+
+  - name: "Check admin access was ok - 1.2"
+    set_fact:
+      acc_inconsistency: "{{ acc_inconsistency + [ inventory_hostname + ': admin access via HTTPS NOT ok!' ] }}"
+    when: "https_1.failed"
+
+  - name: "Check admin access was ok - 2.1"
+    set_fact:
+      acc_inconsistency: "{{ acc_inconsistency + [ inventory_hostname + ': ' + item.item.login + ' access via SSH NOT failed!' ] }}"
+    when: "not item.failed"
+    with_items: "{{ ssh_2.results  }}"
+
+  - name: "Check admin access was ok - 2.2"
+    set_fact:
+      acc_inconsistency: "{{ acc_inconsistency + [ inventory_hostname + ': ' + item.item.login + ' access via HTTPS NOT failed!' ] }}"
+    when: "not item.failed"
+    with_items: "{{ https_2.results }}"
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Local accounts ok' if (acc_inconsistency | length) == 0 else acc_inconsistency}}"
