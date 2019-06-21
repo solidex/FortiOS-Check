@@ -1,0 +1,40 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  vars:
+    bgp_inconsistency: []
+    route_n: []
+  tasks:
+
+  - name: Get IPv4 routing table
+    delegate_to: localhost
+    fortiosconfig:
+      config: "router ipv4"
+      action: "monitor"
+      host:  "{{ host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      https: "{{ https }}"
+    register: router_ipv4
+
+  - set_fact:
+      qry: "[?type=='bgp']"
+
+  - set_fact:
+      router_ipv4_bgp: "{{ router_ipv4.meta.results | json_query(qry) }}"
+
+  - name: "Check if redundant routes exist"
+    set_fact:
+      bgp_inconsistency: "{{ bgp_inconsistency + [ inventory_hostname + ': no redundant route for '+ item.ip_mask + ' in IPv4 rt table'] }}"
+    when:
+      - "router_ipv4.meta.results | json_query(qry) | length >= 2"
+    with_items:
+      - "{{ router_ipv4_bgp }}"
+    vars:
+      qry: "[?ip_mask=='{{ item.ip_mask }}']"
+
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'BGP routes ok' if (bgp_inconsistency | length) == 0 else bgp_inconsistency}}"

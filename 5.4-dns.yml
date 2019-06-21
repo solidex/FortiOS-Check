@@ -1,0 +1,45 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  vars:
+    dns_inconsistency: []
+  tasks:
+
+  - name: "Get DNS config"
+    delegate_to: localhost
+    fortiosconfig:
+     config: "system dns"
+     action: "get"
+     host:  "{{  host }}"
+     username: "{{  username }}"
+     password: "{{ password }}"
+     https: True
+    register: dns_info
+
+  - name: "Check DNS config"
+    set_fact:
+      dns_inconsistency: "{{ dns_inconsistency + [ inventory_hostname + ': DNS servers are not configured properly' ]}}"
+    when: 'dns_info.meta.results.primary != dns[0] or dns_info.meta.results.secondary != dns[1]'
+
+  - name: "Clear DNS cache and ping FQDN"
+    delegate_to: localhost
+    fortiosconfig:
+      action: "ssh"
+      host:  "{{  host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      https: True
+      commands: |
+            diag test application dnsproxy 14
+            exec ping www.tut.by
+    register: ping_result
+
+  - name: "Check if pings where ok"
+    set_fact:
+      dns_inconsistency: "{{ dns_inconsistency + [ inventory_hostname + ': packet loss pinging ' + item.item.ip ]}}"
+    when: '" 0% packet loss" not in ping_result.meta.out'
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'DNS ok' if (dns_inconsistency | length) == 0 else dns_inconsistency }}"

@@ -4,6 +4,7 @@
   gather_facts: no
   vars:
     bgp_inconsistency: []
+    route_n: []
   tasks:
 
   - name: Get BGP facts
@@ -39,4 +40,4 @@
 
   - name: Analyze and print result
     debug:
-       msg: "{{ 'BGP state ok' if (bgp_inconsistency | length) == 0 else bgp_inconsistency}}"
+       msg: "{{ 'BGP ok' if (bgp_inconsistency | length) == 0 else bgp_inconsistency}}"

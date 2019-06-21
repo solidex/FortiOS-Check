@@ -47,4 +47,4 @@
 
   - name: Analyze and print result
     debug:
-       msg: "{{ 'NTP: ok' if (ntp_inconsistency | length) == 0 else ntp_inconsistency }}"
+       msg: "{{ 'NTP ok' if (ntp_inconsistency | length) == 0 else ntp_inconsistency }}"

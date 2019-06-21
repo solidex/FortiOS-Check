@@ -22,7 +22,7 @@
     loop: "{{ service.ping }}"
     changed_when: no
     failed_when: no
-    
+
   # Ping test
   - name: "Check if pings where ok"
     set_fact:
@@ -70,22 +70,6 @@
       av_inconsistency: "{{ av_inconsistency + [ inventory_hostname + ': result=<' + item.status | string + '> expected=<' + service.av.expected_status | string + '> for ' + item.item.url ]}}"
     when: 'item.status | int != service.av.expected_status | int'
     loop: "{{ av_test.results }}"
-
-  # IPS test
-  - name: Check if IPS URLs can be received
-    uri:
-      url: "{{ item.url }}"
-      validate_certs: no
-      timeout: 5
-    loop: "{{ ips_test_urls }}"
-    failed_when: no
-    register: ips_test
-
-  - name: "Check if IPS works as expected"
-    set_fact:
-      ips_inconsistency: "{{ ips_inconsistency + [ inventory_hostname + ': result=<' + item.status | string + '> expected=<' + service.av.expected_status | string + '> for ' + item.item.url ]}}"
-    when: 'item.status | int != service.ips.expected_status | int'
-    loop: "{{ ips_test.results }}"
 
   # Printing results
 

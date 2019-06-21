@@ -15,10 +15,8 @@
       https: "{{ https }}"
     register: user_fw_auth_info
 
-
   - set_fact:
       qry: "[?username=='{{ user|upper }}']"
-
 
   - set_fact:
       userinfo: "{{ user_fw_auth_info.meta.results | json_query(qry) }}"
