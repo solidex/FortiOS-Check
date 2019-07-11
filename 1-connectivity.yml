@@ -49,6 +49,7 @@
      password: "{{ password }}"
      https: True
      commands: |
+               execute ping-options source {{ ip.port7.address | ipaddr('address') }}
                execute ping {{ item }}
 
     register: ping_result_left

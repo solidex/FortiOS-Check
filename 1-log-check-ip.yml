@@ -1,0 +1,12 @@
+
+- hosts: ctrl_log
+
+  vars:
+    log_inconsistency: []
+  tasks:
+
+
+    - name: Collect only facts returned by facter
+      setup:
+
+    - debug: var=ansible_all_ipv4_addresses

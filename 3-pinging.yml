@@ -13,9 +13,14 @@
     changed_when: no
     failed_when: no
 
-  - set_fact:
-      stats: "{{ ping_status.stdout | regex_findall('ping statistics ---\\n(\\d+) connects.*(\\d+) ok')}}"
+  - debug:
+      msg: "{{ ping_status }}"
 
+  - set_fact:
+      stats: "{{ ping_status.stdout | regex_findall('ping statistics ---\\n(\\d+) connects, (\\d+) ok')}}"
+
+  - debug:
+     msg: "{{ stats }}"
   - name: "Check if pings where ok"
     set_fact:
       ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': lost ' + (stats[0][0] | int - stats[0][1] | int) | string + ' http pings' ]}}"

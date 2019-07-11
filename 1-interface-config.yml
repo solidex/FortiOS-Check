@@ -18,12 +18,15 @@
       https: "{{ https }}"
     register: interface_info
 
+  - debug: var=interface_info
+
   - name: "Check if interfaces are configured"
     set_fact:
-      intf_inconsistency: "{{ intf_inconsistency + [ inventory_hostname + ': has unexpected IP of '+ item.ip | string + ip[item.name].address | ipaddr('address') | string + item.ip | ipv4 | string ] }}"
+      intf_inconsistency: "{{ intf_inconsistency + [ inventory_hostname + ': ' + item.name + ' has unexpected IP of '+ item.ip | string + ip[item.name].address | ipaddr('address') | string + item.ip | ipv4 | string ] }}"
     when:
       - ip[item.name] is defined
       - (ip[item.name].address | ipaddr("address") | string + " " + ip[item.name].address | ipaddr("netmask") | string) != item.ip
+      - not (ip[item.name].address == "0.0.0.0/0" and item.ip == "0.0.0.0 0.0.0.0") 
     loop: "{{ interface_info.meta.results }}"
 
   - name: Analyze and print result

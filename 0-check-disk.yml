@@ -1,0 +1,17 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  tasks:
+
+  - name: Scan disk
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{ host }}"
+     username: "{{ username }}"
+     password: "{{ password }}"
+     commands: |
+               exec disk scan 17
+               y
+    register: system_status_info

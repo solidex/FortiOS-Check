@@ -1,0 +1,20 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  tasks:
+
+  - name: Bring down interface
+    delegate_to: localhost
+    fortiosconfig:
+      action: "put"
+      host: "{{ host }}"
+      username: "{{  username }}"
+      password: "{{ password }}"
+      vdom:  "{{  vdom }}"
+      config: "system interface"
+      config_parameters:
+        name: "{{ port }}"
+        json:
+          name: "{{ port }}"
+          status: "down"

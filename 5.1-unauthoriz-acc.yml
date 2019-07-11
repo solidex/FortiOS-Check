@@ -37,7 +37,7 @@
   - name: "Check if scan found no open ports"
     set_fact:
       acc_inconsistency: "{{ acc_inconsistency + [ inventory_hostname + ': ' + item.item[0] + ' from ' + item.item[1] + ' check failed: ' + item.stdout ]}}"
-    when: 'item.stdout != ""'
+    when: 'item.stdout is defined and item.stdout != ""'
     loop: "{{ acc_status.results }}"
 
   # Printing results

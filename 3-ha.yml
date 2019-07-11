@@ -34,19 +34,19 @@
     ignore_errors: yes
 
   - set_fact:
-      fg_master_sync: "{{ system_ha_sync_info.meta.out | regex_findall(fg_master_sn[0] + '.*: ([\\w-]+)') }}"
-      fg_slave_sync: "{{ system_ha_sync_info.meta.out | regex_findall(fg_slave_sn[0] + '.*: ([\\w-]+)') }}"
+      fg_master_sync: "{{ (system_ha_sync_info.meta.out | regex_findall(fg_master_sn[0] + '.*: ([\\w-]+)'))[0] }}"
+      fg_slave_sync: "{{ (system_ha_sync_info.meta.out | regex_findall(fg_slave_sn[0] + '.*: ([\\w-]+)'))[0] }}"
     ignore_errors: yes
 
   - name: "Check HA master/slave are there"
     set_fact:
-      ha_inconsistency: "{{ ha_inconsistency + [ inventory_hostname + ': Master or Slave missing, M ' + fg_master_sn[0] + ', S ' + fg_slave_sn[0] ]}}"
-    when: "fg_master_sn[0] | default('N/A') == '' or fg_slave_sn[0] | default('N/A') =='' "
+      ha_inconsistency: "{{ ha_inconsistency + [ inventory_hostname + ': Master or Slave missing, M ' + fg_master_sn + ', S ' + fg_slave_sn ]}}"
+    when: "fg_master_sn | default('N/A') == '' or fg_slave_sn | default('N/A') =='' "
 
   - name: "Check HA is in-sync"
     set_fact:
-      ha_inconsistency: "{{ ha_inconsistency + [ inventory_hostname + ': Sync check failed, M ' + fg_master_sync[0] + ', S ' + fg_slave_sync[0] ]}}"
-    when: "fg_master_sync[0] | default('not-in-sync') != 'in-sync' or fg_slave_sync[0] | default('not-in-sync') != 'in-sync' "
+      ha_inconsistency: "{{ ha_inconsistency + [ inventory_hostname + ': Sync check failed, M ' + fg_master_sync | default('N/A') + ', S ' + fg_slave_sync | default('N/A') ]}}"
+    when: "fg_master_sync | default('not-in-sync') != 'in-sync' or fg_slave_sync | default('not-in-sync') != 'in-sync' "
 
   - name: Analyze and print result
     debug:
