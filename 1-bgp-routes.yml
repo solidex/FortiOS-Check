@@ -26,13 +26,8 @@
 
   - name: "Check if redundant routes exist"
     set_fact:
-      bgp_inconsistency: "{{ bgp_inconsistency + [ inventory_hostname + ': no redundant route for '+ item.ip_mask + ' in IPv4 rt table'] }}"
-    when: "router_ipv4.meta.results | json_query(qry2) | length < 2"
-    with_items:
-      - "{{ router_ipv4_bgp }}"
-    vars:
-      qry2: "[?ip_mask=='{{ item.ip_mask }}']"
-
+      bgp_inconsistency: "{{ bgp_inconsistency + [ inventory_hostname + ': no BGP routes in IPv4 rt table'] }}"
+    when: "router_ipv4.meta.results | length < 2"
 
   - name: Analyze and print result
     debug:
