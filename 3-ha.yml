@@ -17,6 +17,11 @@
                get system ha status
     register: system_ha_info
 
+  - set_fact:
+      fg_master_sn: "{{ system_ha_info.meta.out | regex_findall ('Master: (FG\\w+),') }}"
+      fg_slave_sn: "{{ system_ha_info.meta.out | regex_findall ('Slave : (FG\\w+),') }}"
+    ignore_errors: yes
+
   - name: Get HA status - Sync
     delegate_to: localhost
     fortiosconfig:
@@ -27,11 +32,6 @@
      commands: |
                get system ha status | grep -A3 "Configuration Status:"
     register: system_ha_sync_info
-
-  - set_fact:
-      fg_master_sn: "{{ system_ha_info.meta.out | regex_findall ('Master:\\d (\\w+)') }}"
-      fg_slave_sn: "{{ system_ha_info.meta.out | regex_findall ('Slave :\\d (\\w+)') }}"
-    ignore_errors: yes
 
   - set_fact:
       fg_master_sync: "{{ (system_ha_sync_info.meta.out | regex_findall(fg_master_sn[0] + '.*: ([\\w-]+)'))[0] }}"

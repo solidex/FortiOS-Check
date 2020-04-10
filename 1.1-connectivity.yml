@@ -26,7 +26,7 @@
     when: '" 0% packet loss" not in item.meta.out'
     loop: "{{ ping_result_bgp.results }}"
 
-  - name: "Ping - Internet"
+  - name: "Ping: Subscriber side"
     delegate_to: localhost
     fortiosconfig:
      action: "ssh"
@@ -36,24 +36,21 @@
      https: True
      commands: |
                execute ping {{ item }}
-
-    register: ping_result_right
-    loop: "{{ ping_right }}"
-
-  - name: "Ping - Subscribers"
-    delegate_to: localhost
-    fortiosconfig:
-     action: "ssh"
-     host:  "{{  host }}"
-     username: "{{  username }}"
-     password: "{{ password }}"
-     https: True
-     commands: |
-               execute ping-options source {{ ip.port7.address | ipaddr('address') }}
-               execute ping {{ item }}
-
     register: ping_result_left
     loop: "{{ ping_left[inventory_hostname] }}"
+
+  - name: "Ping: Internet side"
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{  host }}"
+     username: "{{  username }}"
+     password: "{{ password }}"
+     https: True
+     commands: |
+               execute ping {{ item }}
+    register: ping_result_right
+    loop: "{{ ping_right }}"
 
   - name: "Check if pings where ok 1"
     set_fact:

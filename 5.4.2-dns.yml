@@ -15,12 +15,14 @@
      username: "{{  username }}"
      password: "{{ password }}"
      https: True
+     ssl_verify: False
     register: dns_info
 
   - name: "Check DNS config"
     set_fact:
-      dns_inconsistency: "{{ dns_inconsistency + [ inventory_hostname + ': DNS servers are not configured properly' ]}}"
-    when: 'dns_info.meta.results.primary != dns[0] or dns_info.meta.results.secondary != dns[1]'
+      dns_inconsistency: "{{ dns_inconsistency + [ inventory_hostname + ': DNS servers are not configured properly! Configured servers: ' + dns_info.meta.results.primary + ',' + dns_info.meta.results.secondary + ' expected: ' + item ]}}"
+    when: 'dns_info.meta.results.primary != item and dns_info.meta.results.secondary != item'
+    with_items: "{{ dns }}"
 
   - name: "Clear DNS cache and ping FQDN"
     delegate_to: localhost

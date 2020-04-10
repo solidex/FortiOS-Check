@@ -1,0 +1,12 @@
+
+- hosts: testing_clients
+  gather_facts: no
+
+  tasks:
+
+  - name: Add package
+    apt:
+      name: "{{ item }}"
+      state: present
+    become: yes
+    with_items: [ 'httping', 'hping3', 'nmap' ]

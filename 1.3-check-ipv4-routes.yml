@@ -19,17 +19,14 @@
       ssl_verify: False
     register: router_ipv4
 
-  - set_fact:
-      qry: "[?type=='bgp']"
-
-  - set_fact:
-      router_ipv4_bgp: "{{ router_ipv4.meta.results | json_query(qry) }}"
-
-  - name: "Check if redundant routes exist"
+  - name: "Check route exist"
     set_fact:
-      bgp_inconsistency: "{{ bgp_inconsistency + [ inventory_hostname + ': no BGP routes in IPv4 rt table'] }}"
-    when: "router_ipv4.meta.results | length < 2"
+      bgp_inconsistency: "{{ bgp_inconsistency + [ inventory_hostname + ': no BGP route to ' + item + ' in IPv4 rt table'] }}"
+    when: "router_ipv4.meta.results | json_query(qry) == []"
+    vars:
+      qry: "[?ip_mask=='{{ item }}']"
+    with_items: "{{ expected_ipv4_routes }}"
 
   - name: Analyze and print result
     debug:
-       msg: "{{ 'BGP routes ok' if (bgp_inconsistency | length) == 0 else bgp_inconsistency}}"
+       msg: "{{ 'IPv4 routes ok' if (bgp_inconsistency | length) == 0 else bgp_inconsistency}}"

@@ -7,14 +7,16 @@
     wf_inconsistency: []
     av_inconsistency: []
     ips_inconsistency: []
+    _ips_test_results: []
+    timeout: 3
   tasks:
 
   - fail:
       msg: "Error: group param is not defined"
-    when: group is not defined
+    when: profile_id is not defined
 
   - set_fact:
-      service: "{{ services[group] }}"
+      service: "{{ services[profile_id] }}"
 
   - name: "Pinging"
     shell: ping -q -c 5 -W 1 {{ item }}
@@ -35,6 +37,7 @@
     uri:
       url: "{{ item.url }}"
       return_content: yes
+      timeout: "{{ timeout }}"
       validate_certs: no
     loop: "{{ service.wf }}"
     failed_when: no
@@ -44,7 +47,7 @@
 
   - name: "Check if URL filer works as expected"
     set_fact:
-      wf_inconsistency: "{{ wf_inconsistency + [ inventory_hostname + ': result=<' + item.status | string + '> expected=<' + item.item.expected_status | string + '> for ' + item.item.url ]}}"
+      wf_inconsistency: "{{ wf_inconsistency + [ inventory_hostname + ': result=<' + item.status | string + '>, expected=<' + item.item.expected_status | string + '> for ' + item.item.url ]}}"
     when: 'item.status | int != item.item.expected_status | int'
     loop: "{{ http_ping.results }}"
 
@@ -61,18 +64,54 @@
     uri:
       url: "{{ item.url }}"
       validate_certs: no
+      timeout: "{{ timeout }}"
     loop: "{{ av_test_files }}"
     failed_when: no
     register: av_test
 
   - name: "Check if AV works as expected"
     set_fact:
-      av_inconsistency: "{{ av_inconsistency + [ inventory_hostname + ': result=<' + item.status | string + '> expected=<' + service.av.expected_status | string + '> for ' + item.item.url ]}}"
+      av_inconsistency: "{{ av_inconsistency + [ inventory_hostname + ': result=<' + item.status | string + '>, expected=<' + service.av.expected_status | string + '> for ' + item.item.url ]}}"
     when: 'item.status | int != service.av.expected_status | int'
     loop: "{{ av_test.results }}"
 
-  # Printing results
+  # IPS test
+  - name: Check if IPS attack can be implemented
+    uri:
+      url: "{{ item.url }}"
+      timeout: "{{ timeout }}"
+      validate_certs: no
+    loop: "{{ ips_test_files }}"
+    failed_when: no
+    register: ips_test
 
+  - name: "Check and copy uri status when it is defined"
+    set_fact:
+      _ips_test_results: "{{ _ips_test_results + [ item ] }}"
+    when:
+       - item.status is defined
+    loop: "{{ ips_test.results }}"
+
+  - name: "Check if uri timeout error"
+    set_fact:
+      _ips_test_results: "{{ _ips_test_results + [ item | combine({'status': -1}, recursive=True) ] }}"
+    when:
+       - item.status is undefined
+       - ("socket.timeout" in item.module_stdout)
+    loop: "{{ ips_test.results }}"
+
+  # - debug:
+  #     var: _ips_test_results
+
+  - name: "Check if IPS works as expected"
+
+    set_fact:
+      ips_inconsistency: "{{ ips_inconsistency + [ inventory_hostname + ': result=<' + item.status | string + '>, expected=<' + service.ips.expected_status | string + '> for ' + item.item.url ]}}"
+    when:
+      - item.status | int != service.ips.expected_status | int
+    loop: "{{ _ips_test_results }}"
+
+  # Printing results
   - name: Summarize results
     set_fact:
       inconsistency: "{{ ping_inconsistency + wf_inconsistency + av_inconsistency +  ips_inconsistency }}"

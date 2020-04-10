@@ -8,10 +8,12 @@
 
   # Ping test
   - name: "Running httping"
-    shell: httping -l -c 90 -t1 -g {{ httpping.target }}
+    shell: httping -c 210 -t1 -g {{ httpping.target }}
     register: ping_status
     changed_when: no
     failed_when: no
+    async: 240
+    poll: 5
 
   - debug:
       msg: "{{ ping_status }}"
@@ -24,7 +26,7 @@
   - name: "Check if pings where ok"
     set_fact:
       ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': lost ' + (stats[0][0] | int - stats[0][1] | int) | string + ' http pings' ]}}"
-    when: "((stats[0][0] | int - stats[0][1] | int) > 10)"
+    when: "((stats[0][0] | int - stats[0][1] | int) > 180)"
 
   # Printing results
 
