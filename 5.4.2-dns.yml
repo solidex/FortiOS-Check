@@ -33,8 +33,16 @@
       password: "{{ password }}"
       https: True
       commands: |
-            diag test application dnsproxy 14
-            exec ping www.tut.by
+             {% if vdom_mode %}
+             config global
+             {% endif %}
+             diag test application dnsproxy 14
+             {% if vdom_mode %}
+             end
+             config vdom
+             edit {{ mgmt_vdom }}
+             {% endif %}
+             exec ping www.tut.by
     register: ping_result
 
   - name: "Check if pings where ok"

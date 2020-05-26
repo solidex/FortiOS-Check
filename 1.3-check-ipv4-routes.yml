@@ -18,6 +18,21 @@
       https: "{{ https }}"
       ssl_verify: False
     register: router_ipv4
+    when: not vdom_mode
+
+  - name: Get IPv4 routing table
+    delegate_to: localhost
+    fortiosconfig:
+      config: "router ipv4"
+      action: "monitor"
+      host:  "{{ host }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      https: "{{ https }}"
+      ssl_verify: False
+      vdom: "{{ vdom }}"
+    register: router_ipv4
+    when: vdom_mode
 
   - name: "Check route exist"
     set_fact:

@@ -15,6 +15,10 @@
      password: "{{ password }}"
      https: True
      commands: |
+               {% if vdom_mode %}
+               config vdom
+               edit {{ vdom }}
+               {% endif %}
                execute ping {{ item.ip }}
 
     register: ping_result_bgp
@@ -34,7 +38,12 @@
      username: "{{  username }}"
      password: "{{ password }}"
      https: True
+     vdom: "{{ vdom }}"
      commands: |
+               {% if vdom_mode %}
+               config vdom
+               edit {{ vdom }}
+               {% endif %}
                execute ping {{ item }}
     register: ping_result_left
     loop: "{{ ping_left[inventory_hostname] }}"
@@ -47,7 +56,12 @@
      username: "{{  username }}"
      password: "{{ password }}"
      https: True
+     vdom: "{{ vdom }}"
      commands: |
+               {% if vdom_mode %}
+               config vdom
+               edit {{ vdom }}
+               {% endif %}
                execute ping {{ item }}
     register: ping_result_right
     loop: "{{ ping_right }}"

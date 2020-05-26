@@ -14,7 +14,8 @@
       username: "{{ username }}"
       password: "{{ password }}"
       dev_os: fortios
-      filter: 'bgp_neighbors'
+      filter: "bgp_neighbors"
+      optional_args: "{% if vdom_mode %}{ 'fortios_vdom': '{{ vdom }}'}{% else %}{}{% endif %}"
     register: result
 
   - set_fact:
