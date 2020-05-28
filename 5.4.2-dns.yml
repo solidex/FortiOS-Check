@@ -42,7 +42,7 @@
              config vdom
              edit {{ mgmt_vdom }}
              {% endif %}
-             exec ping www.tut.by
+             exec ping update.fortiguard.net
     register: ping_result
 
   - name: "Check if pings where ok"
