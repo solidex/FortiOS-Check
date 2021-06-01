@@ -4,6 +4,17 @@
   gather_facts: no
   tasks:
 
+  - name: User radclient to assign service via rsso
+    delegate_to: localhost
+    shell: "echo \"
+          Acct-Status-Type=Start,
+          NAS-IP-Address=10.10.10.10,
+          Calling-Station-Id={{ user }},
+          Framed-IP-Address={{ hostvars['test_client'].pub_ip }},
+          Framed-IPv6-Address={{ hostvars['test_client'].pub_ip6 }},
+          Filter-Id={{ filterid }}
+          \" | radclient -x {{ host }} acct {{ radius_accounting.secret }}"
+
   - name: Get user firewall auth information
     delegate_to: localhost
     fortiosconfig:

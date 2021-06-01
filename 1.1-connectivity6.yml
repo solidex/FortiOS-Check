@@ -1,0 +1,83 @@
+
+- hosts: ha_master
+
+  gather_facts: no
+  vars:
+    ping_inconsistency: []
+  tasks:
+
+  - name: "Ping - BGP neighbors"
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{  host }}"
+     username: "{{  username }}"
+     password: "{{ password }}"
+     https: True
+     commands: |
+               {% if vdom_mode %}
+               config vdom
+               edit {{ vdom }}
+               {% endif %}
+               execute ping6 {{ item.ip }}
+
+    register: ping_result_bgp
+    loop: "{{ bgp.neighbor6 }}"
+
+  - name: "Check if pings where ok - BGP neigh"
+    set_fact:
+      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': packet loss pinging ' + item.item.ip ]}}"
+    when: '" 0% packet loss" not in item.meta.out'
+    loop: "{{ ping_result_bgp.results }}"
+
+  - name: "Ping: Subscriber side"
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{  host }}"
+     username: "{{  username }}"
+     password: "{{ password }}"
+     https: True
+     vdom: "{{ vdom }}"
+     commands: |
+               {% if vdom_mode %}
+               config vdom
+               edit {{ vdom }}
+               {% endif %}
+               execute ping6 {{ item }}
+    register: ping_result_left
+    loop: "{{ ping6_left[inventory_hostname] }}"
+
+  - name: "Ping: Internet side"
+    delegate_to: localhost
+    fortiosconfig:
+     action: "ssh"
+     host:  "{{  host }}"
+     username: "{{  username }}"
+     password: "{{ password }}"
+     https: True
+     vdom: "{{ vdom }}"
+     commands: |
+               {% if vdom_mode %}
+               config vdom
+               edit {{ vdom }}
+               {% endif %}
+               execute ping6 {{ item }}
+    register: ping_result_right
+    loop: "{{ ping6_right }}"
+
+  - name: "Check if pings where ok 1"
+    set_fact:
+      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': packet loss pinging ' + item.item ]}}"
+    when: '" 0% packet loss" not in item.meta.out'
+    loop: "{{ ping_result_left.results }}"
+
+  - name: "Check if pings where ok 2"
+    set_fact:
+      ping_inconsistency: "{{ ping_inconsistency + [ inventory_hostname + ': packet loss pinging ' + item.item ]}}"
+    when: '" 0% packet loss" not in item.meta.out'
+    loop: "{{ ping_result_right.results }}"
+
+  - name: Analyze and print result
+    debug:
+       msg: "{{ 'Connectivity ok' if (ping_inconsistency | length) == 0 else ping_inconsistency}}"

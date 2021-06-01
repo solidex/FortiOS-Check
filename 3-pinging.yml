@@ -8,11 +8,11 @@
 
   # Ping test
   - name: "Running httping"
-    shell: httping -c 210 -t1 -g {{ httpping.target }}
+    shell: httping -c 120 -t1 -g {{ httpping.target }}
     register: ping_status
     changed_when: no
     failed_when: no
-    async: 240
+    async: 150
     poll: 5
 
   - debug:

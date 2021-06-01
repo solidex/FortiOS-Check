@@ -16,10 +16,10 @@
     when: profile_id is not defined
 
   - set_fact:
-      service: "{{ services[profile_id] }}"
+      service: "{{ services6[profile_id] }}"
 
   - name: "Pinging"
-    shell: ping -q -c 5 -W 1 {{ item }}
+    shell: ping6 -q -c 5 -W 1 {{ item }}
     register: ping_status
     loop: "{{ service.ping }}"
     changed_when: no
@@ -33,12 +33,9 @@
     loop: "{{ ping_status.results }}"
 
   # URL filter test
-  - name: Check allowed web resources via HTTP request
-    uri:
-      url: "{{ item.url }}"
-      return_content: yes
-      timeout: "{{ timeout }}"
-      validate_certs: no
+  - name: Check allowed web resources via HTTP request, 1
+    shell:
+      cmd: "curl -k -6 --connect-timeout {{ timeout }} -L -o /dev/null --silent -w '%{http_code}' --url {{ item.url }}"
     loop: "{{ service.wf }}"
     failed_when: no
     register: http_ping
@@ -47,16 +44,25 @@
 
   - name: "Check if URL filer works as expected"
     set_fact:
-      wf_inconsistency: "{{ wf_inconsistency + [ inventory_hostname + ': result=<' + item.status | string + '>, expected=<' + item.item.expected_status | string + '> for ' + item.item.url ]}}"
-    when: 'item.status | int != item.item.expected_status | int'
+      wf_inconsistency: "{{ wf_inconsistency + [ inventory_hostname + ': result=<' + item.stdout | string + '>, expected=<' + item.item.expected_status | string + '> for ' + item.item.url ]}}"
+    when: 'item.stdout | int != item.item.expected_status | int'
     loop: "{{ http_ping.results }}"
+
+  - name: Check allowed web resources via HTTP request, 2
+    shell:
+      cmd: "curl -k -6 --connect-timeout {{ timeout }} -L --silent --url {{ item.url }}"
+    loop: "{{ service.wf }}"
+    failed_when: no
+    register: http_ping
+
+  - debug: var=http_ping
 
   - name: "Check if redirect script is here"
     set_fact:
       wf_inconsistency: "{{ wf_inconsistency + [ inventory_hostname + ': expected=<' + item.item.expected_content | string + '> for ' + item.item.url ]}}"
     when:
       - item.item.expected_content is defined
-      - item.item.expected_content | default("") not in item.content
+      - item.item.expected_content | default("") not in item.stdout
     loop: "{{ http_ping.results }}"
 
   # AV test
@@ -65,7 +71,7 @@
       url: "{{ item.url }}"
       validate_certs: no
       timeout: "{{ timeout }}"
-    loop: "{{ av_test_files }}"
+    loop: "{{ av_test_files6 }}"
     failed_when: no
     register: av_test
 
@@ -81,7 +87,7 @@
       url: "{{ item.url }}"
       timeout: "{{ timeout }}"
       validate_certs: no
-    loop: "{{ ips_test_files }}"
+    loop: "{{ ips_test_files6 }}"
     failed_when: no
     register: ips_test
 
